@@ -1,11 +1,11 @@
 from datetime import datetime
 from random import randrange
 
-from flask import Flask
+from flask import Flask, render_template
 from flask_sqlalchemy import SQLAlchemy
 
 
-app = Flask(__name__)
+app = Flask(__name__, static_folder='static')
 
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///db.sqlite3'
 db = SQLAlchemy(app)
@@ -26,7 +26,18 @@ def index_view():
 
     offset_value = randrange(quantity)
     opinion = Opinion.query.offset(offset_value).first()
-    return f"<h3>Название: {opinion.title}</h3> <br>Текст: {opinion.text}"
+    return render_template('opinion.html', opinion=opinion)
+
+
+@app.route('/add')
+def add_view():
+    return render_template('add_opinion.html')
+
+
+@app.route('/opinions/<int:id>')  
+def opinion_view(id):
+    opinion = Opinion.query.get_or_404(id)
+    return render_template('opinion.html', opinion=opinion) 
 
 
 if __name__ == '__main__':
