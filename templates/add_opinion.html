@@ -12,7 +12,7 @@
           {% if form.title.errors %}
               <p class="text-danger">
                 {% for error in form.title.errors %}
-                        {{ error }}
+                  {{ error }}
                 {% endfor %}
               </p>
           {% endif %}
@@ -24,6 +24,15 @@
             {% endfor %}
           </p>
           {% endif %}
+          <p class="py-3 mb-3">
+            {% with messages = get_flashed_messages() %}
+              {% if messages %}
+                {% for message in messages %}
+                  <span class="text-danger">{{ message }}</span>
+                {% endfor %}
+              {% endif %}
+            {% endwith %}
+          </p>
           {{ form.submit(class="button px-5 py-3 btn") }}
         </form>
       </div>
