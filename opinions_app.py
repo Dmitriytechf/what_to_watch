@@ -1,8 +1,9 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from random import randrange
 
 from flask import Flask, abort, flash, redirect, render_template, url_for
 from flask_sqlalchemy import SQLAlchemy
+from flask_migrate import Migrate
 from flask_wtf import FlaskForm
 from wtforms import StringField, SubmitField, TextAreaField, URLField
 from wtforms.validators import DataRequired, Length, Optional
@@ -13,13 +14,17 @@ app = Flask(__name__, static_folder='static')
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///db.sqlite3'
 app.config['SECRET_KEY'] = 'FORM SECRET KEY'
 db = SQLAlchemy(app)
+migrate = Migrate(app, db)
 
 
 class Opinion(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.String(128), nullable=False)
     text = db.Column(db.Text, unique=True, nullable=False)
-    timestamp = db.Column(db.DateTime, index=True, default=datetime.utcnow)
+    source = db.Column(db.String(256))
+    timestamp = db.Column(db.DateTime, index=True,
+                          default=lambda: datetime.now(timezone.utc))
+    added_by = db.Column(db.String(64))
 
 
 class OpinionForm(FlaskForm):
