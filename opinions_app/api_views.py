@@ -1,12 +1,17 @@
 from flask import jsonify, request
+from sqlalchemy.exc import SQLAlchemyError
 
 from . import app, db
 from .models import Opinion
+from .views import random_opinion
+from .error_handlers import InvalidAPIUsage
 
 
 @app.route('/api/opinions/<int:id>/', methods=['GET'])
 def get_opinion(id):
-    opinion = Opinion.query.get_or_404(id)
+    opinion = Opinion.query.get(id)
+    if opinion is None:
+        raise InvalidAPIUsage('Мнение с указанным id не найдено', 404)
     return jsonify({'opinion': opinion.to_dict()}), 200
 
 
@@ -17,13 +22,35 @@ def get_opinions():
     return jsonify({'opinions': opinions_list}), 200
 
 
+@app.route('/api/get-random-opinion/', methods=['GET'])
+def get_random_opinion():
+    opinion = random_opinion()
+    if opinion is not None:
+        return jsonify({'opinion': opinion.to_dict()}), 200
+
+    raise InvalidAPIUsage('В базе данных нет мнений', 404)
+
+
 @app.route('/api/opinions/', methods=['POST'])
 def add_opinion():
-    data = request.get_json()
+    data = request.get_json(silent=True)
+    if data is None:
+        raise InvalidAPIUsage('Требуется JSON в теле запроса')
+
+    if 'title' not in data or 'text' not in data:
+        raise InvalidAPIUsage('В запросе отсутствуют обязательные поля')
+
+    if Opinion.query.filter_by(text=data['text']).first() is not None:
+        raise InvalidAPIUsage('Такое мнение уже есть в базе данных')
+
     opinion = Opinion()
     opinion.from_dict(data)
-    db.session.add(opinion)
-    db.session.commit()
+    try:
+        db.session.add(opinion)
+        db.session.commit()
+    except SQLAlchemyError as e:
+        db.session.rollback()
+        return jsonify({'error': 'Ошибка при сохранении в базу данных'}), 500
 
     return jsonify({'opinion': opinion.to_dict()}), 201
 
@@ -31,6 +58,11 @@ def add_opinion():
 @app.route('/api/opinions/<int:id>/', methods=['PATCH'])
 def update_opinion(id):
     data = request.get_json()
+    if (
+        'text' in data and 
+        Opinion.query.filter_by(text=data['text']).first() is not None
+    ):
+        raise InvalidAPIUsage('Такое мнение уже есть в базе данных')
 
     opinion = Opinion.query.get_or_404(id)
     opinion.title = data.get('title', opinion.title)
